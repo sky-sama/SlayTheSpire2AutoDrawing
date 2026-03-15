@@ -6,7 +6,7 @@ import keyboard
 import time
 import cv2
 import numpy as np
-import math  # 新增 math 库用于计算两点间距离
+import math
 from PIL import Image, ImageTk
 
 
@@ -14,12 +14,12 @@ class AutoSketchApp:
     def __init__(self, root):
         self.root = root
         self.root.title("杀戮尖塔2 自动素描机器人")
-        self.root.geometry("500x720")
+        self.root.geometry("500x760") 
         self.root.resizable(False, False)
         self.root.attributes("-topmost", True)
 
         self.is_running = False
-        self.is_paused = False       # ★ 新增：暂停状态标志
+        self.is_paused = False       
         self.stop_requested = False
         self.image_path = None
         self.contours = []
@@ -28,7 +28,7 @@ class AutoSketchApp:
         self.setup_ui()
 
         keyboard.add_hotkey('F9', self.on_hotkey_start)
-        keyboard.add_hotkey('F8', self.on_hotkey_pause)  # ★ 新增：F8暂停快捷键
+        keyboard.add_hotkey('F8', self.on_hotkey_pause)  
         keyboard.add_hotkey('F10', self.on_hotkey_stop)
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
@@ -53,13 +53,11 @@ class AutoSketchApp:
         ttk.Label(detail_frame, text="线条细节(阈值):").pack(side="left")
         self.threshold_var = tk.IntVar(value=100)
 
-        # ★ 直接输入数值的微调框（支持跳跃式修改）
         thresh_spin = ttk.Spinbox(detail_frame, from_=10, to=200, textvariable=self.threshold_var, width=5,
                                   command=self.update_preview)
         thresh_spin.pack(side="right", padx=(0, 5))
-        thresh_spin.bind('<Return>', self.update_preview)  # 绑定回车键确认修改
+        thresh_spin.bind('<Return>', self.update_preview)
 
-        # ★ 优化：移除 command 实时触发，改为绑定鼠标松开事件，彻底解决拖动卡顿
         thresh_scale = ttk.Scale(detail_frame, from_=10, to=200, variable=self.threshold_var, orient="horizontal")
         thresh_scale.pack(side="left", fill="x", expand=True, padx=5)
         thresh_scale.bind("<ButtonRelease-1>", self.update_preview)
@@ -89,19 +87,19 @@ class AutoSketchApp:
         draw_frame.pack(fill="x", padx=15, pady=5)
 
         ttk.Label(draw_frame, text="拖拽步长(像素):").grid(row=0, column=0, padx=10, pady=5, sticky="e")
-        self.drag_step_var = tk.IntVar(value=5)  # 默认每5个像素发送一次坐标，非常平滑
+        self.drag_step_var = tk.IntVar(value=5)  
         ttk.Spinbox(draw_frame, from_=1, to=50, textvariable=self.drag_step_var, width=8).grid(row=0, column=1)
 
-        # ★ 彻底解除限制，允许设为 0.00，追求极致速度
         ttk.Label(draw_frame, text="起落笔延迟 (秒):").grid(row=1, column=0, padx=10, pady=5, sticky="e")
         self.delay_var = tk.DoubleVar(value=0.00)
-        ttk.Spinbox(draw_frame, from_=0.00, to=0.2, increment=0.01, textvariable=self.delay_var, width=8).grid(row=1,
-                                                                                                               column=1)
+        ttk.Spinbox(draw_frame, from_=0.00, to=0.2, increment=0.01, textvariable=self.delay_var, width=8).grid(row=1, column=1)
 
         ttk.Label(draw_frame, text="使用按键:").grid(row=0, column=2, padx=10, pady=5, sticky="e")
         self.btn_var = tk.StringVar(value="right")
-        ttk.Combobox(draw_frame, textvariable=self.btn_var, values=["left", "right"], width=5, state="readonly").grid(
-            row=0, column=3)
+        ttk.Combobox(draw_frame, textvariable=self.btn_var, values=["left", "right"], width=5, state="readonly").grid(row=0, column=3)
+
+        self.auto_align_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(draw_frame, text="暂停恢复时自动寻找并物理对齐地图", variable=self.auto_align_var).grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="w")
 
         # --- 状态与控制 ---
         ttk.Label(self.root, text="F9: 开始 | F8: 暂停/继续 | F10: 停止", foreground="red",
@@ -131,9 +129,6 @@ class AutoSketchApp:
         thresh2 = thresh1 * 2
         edges = cv2.Canny(gray, thresh1, thresh2)
 
-        # ★★★ 核心修复：将 RETR_EXTERNAL 改为了 RETR_LIST ★★★
-        # 之前的 EXTERNAL 只会获取最外层轮廓，导致文字内部或包裹在里面的线条全部丢失！
-        # LIST 会提取所有的线条（包括内部细节）
         contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
         raw_contours = []
@@ -143,7 +138,6 @@ class AutoSketchApp:
             if len(approx) > 1:
                 raw_contours.append(approx)
 
-        # 路径优化算法 (最近邻启发式算法)，减少乱飞的横线
         self.contours = []
         if raw_contours:
             unvisited = list(raw_contours)
@@ -189,7 +183,6 @@ class AutoSketchApp:
         if not self.is_running and self.contours:
             self.start_drawing()
 
-    # ★ 新增：处理暂停指令
     def on_hotkey_pause(self):
         if self.is_running and not self.stop_requested:
             self.is_paused = not self.is_paused
@@ -197,7 +190,7 @@ class AutoSketchApp:
     def on_hotkey_stop(self):
         if self.is_running:
             self.stop_requested = True
-            self.is_paused = False  # 解除暂停阻塞，让线程安全退出
+            self.is_paused = False  
             self.status_label.config(text="正在强制停止...", foreground="orange")
 
     def start_drawing(self):
@@ -228,32 +221,117 @@ class AutoSketchApp:
         offset_y = box_y + (box_h - draw_h) / 2
 
         step_px = max(1, self.drag_step_var.get())
-        # ★ 移除强制最低延迟，完全听从用户设置
         delay = max(0.00, self.delay_var.get())
         mouse_btn = self.btn_var.get()
 
-        # ★ 新增核心逻辑：检查是否触发了暂停
+        self.global_offset_x = 0
+        self.global_offset_y = 0
+
         def check_pause(target_x, target_y, should_be_down):
-            if self.is_paused:
-                # 暂停时：抬起鼠标释放控制权
-                pyautogui.mouseUp(button=mouse_btn)
-                self.root.after(0, lambda: self.status_label.config(text="当前状态: 已暂停 (按F8继续)", foreground="purple"))
+            if not self.is_paused:
+                return True, 0, 0
+
+            # 记录旧的全局偏移量，用于计算本次增量
+            old_gx = self.global_offset_x
+            old_gy = self.global_offset_y
+
+            pyautogui.mouseUp(button=mouse_btn)
+
+            # --- 1. 暂停前：截取中心区域锚点 ---
+            if self.auto_align_var.get():
+                self.root.after(0, lambda: self.status_label.config(text="正在保存地图锚点快照...", foreground="purple"))
+                # 缩小截图面积至35%，避免边缘UI和视差背景干扰
+                aw, ah = int(box_w * 0.35), int(box_h * 0.35)
+                ax, ay = int(box_x + (box_w - aw) / 2), int(box_y + (box_h - ah) / 2)
+                anchor_img = pyautogui.screenshot(region=(ax, ay, aw, ah))
+                anchor_cv = cv2.cvtColor(np.array(anchor_img), cv2.COLOR_RGB2BGR)
+                old_rel_x = ax - box_x
+                old_rel_y = ay - box_y
+
+            self.root.after(0, lambda: self.status_label.config(text="当前状态: 已暂停 (按F8继续)", foreground="purple"))
+            
+            # --- 2. 阻塞等待 ---
+            while self.is_paused and not self.stop_requested:
+                time.sleep(0.1)
                 
-                # 阻塞循环直到取消暂停或按下停止
-                while self.is_paused and not self.stop_requested:
-                    time.sleep(0.1)
+            if self.stop_requested:
+                return False, 0, 0
+
+            # --- 3. 恢复时：大范围地毯式扫描 + 物理精准拖拽纠偏 ---
+            if self.auto_align_var.get():
+                self.root.after(0, lambda: self.status_label.config(text="正在大范围扫描寻找对齐点...", foreground="orange"))
+                found = False
+                
+                # 阶段 A: 寻回地图。加大每次滚动的幅度(800)，进行大规模上下探查
+                scroll_sweeps = [0] + [800] * 5 + [-800] * 10 + [800] * 5
+                for sc in scroll_sweeps:
+                    if self.stop_requested: break
+                    if sc != 0:
+                        pyautogui.moveTo(box_x + box_w / 2, box_y + box_h / 2)
+                        pyautogui.scroll(sc)
+                        time.sleep(0.4) # 等地图滚动稳定
+
+                    screen_img = pyautogui.screenshot(region=(int(box_x), int(box_y), int(box_w), int(box_h)))
+                    screen_cv = cv2.cvtColor(np.array(screen_img), cv2.COLOR_RGB2BGR)
                     
-                if self.stop_requested:
-                    return False
-                
-                # 继续时：恢复UI，鼠标移回刚才的点，重新按下按键
-                self.root.after(0, lambda: self.status_label.config(text="正在作画中! (F8暂停 | F10停止)", foreground="red"))
-                pyautogui.moveTo(target_x, target_y)
+                    res = cv2.matchTemplate(screen_cv, anchor_cv, cv2.TM_CCOEFF_NORMED)
+                    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+                    
+                    if max_val > 0.65: # 找到了！
+                        found = True
+                        break
+                        
+                # 阶段 B: 物理精准拖拽。利用鼠标左键把地图硬拽回绝对中心！
+                if found:
+                    self.root.after(0, lambda: self.status_label.config(text="目标已锁定，正在物理精准拖拽...", foreground="orange"))
+                    dx, dy = 0, 0
+                    for _ in range(5): # 最多进行5次微调拖拽
+                        if self.stop_requested: break
+                        screen_img = pyautogui.screenshot(region=(int(box_x), int(box_y), int(box_w), int(box_h)))
+                        screen_cv = cv2.cvtColor(np.array(screen_img), cv2.COLOR_RGB2BGR)
+                        res = cv2.matchTemplate(screen_cv, anchor_cv, cv2.TM_CCOEFF_NORMED)
+                        _, max_val, _, max_loc = cv2.minMaxLoc(res)
+                        
+                        if max_val < 0.5: break # 意外丢失
+                            
+                        dx = max_loc[0] - old_rel_x
+                        dy = max_loc[1] - old_rel_y
+                        
+                        if abs(dx) <= 2 and abs(dy) <= 2:
+                            dx, dy = 0, 0 # 完美对齐
+                            break
+                            
+                        # 核心：反向物理拖动地图以消除位移
+                        pyautogui.moveTo(box_x + box_w / 2, box_y + box_h / 2)
+                        pyautogui.mouseDown(button='left')
+                        time.sleep(0.05)
+                        pyautogui.move(-dx, -dy, duration=0.2)
+                        time.sleep(0.05)
+                        pyautogui.mouseUp(button='left')
+                        time.sleep(0.3) 
+                        
+                    # 把物理拖拽解决不了的极限残余微小误差，通过数学偏移补偿
+                    self.global_offset_x += dx
+                    self.global_offset_y += dy
+                else:
+                    self.root.after(0, lambda: messagebox.showwarning("对齐失败", "滚动搜索未能找回原位置，将在当前位置继续强行绘制。"))
+            
+            self.root.after(0, lambda: self.status_label.config(text="正在作画中! (F8暂停 | F10停止)", foreground="red"))
+            
+            # 计算本次纠偏产生的坐标变化增量
+            delta_x = self.global_offset_x - old_gx
+            delta_y = self.global_offset_y - old_gy
+
+            new_target_x = target_x + delta_x
+            new_target_y = target_y + delta_y
+            
+            pyautogui.moveTo(new_target_x, new_target_y)
+            time.sleep(delay)
+            if should_be_down:
+                pyautogui.mouseDown(button=mouse_btn)
                 time.sleep(delay)
-                if should_be_down:
-                    pyautogui.mouseDown(button=mouse_btn)
-                    time.sleep(delay)
-            return True
+                
+            return True, delta_x, delta_y
 
         try:
             pyautogui.mouseUp(button=mouse_btn)
@@ -268,12 +346,15 @@ class AutoSketchApp:
                     if self.stop_requested: break
 
                     img_x, img_y = point[0]
-                    screen_x = int(offset_x + img_x * scale)
-                    screen_y = int(offset_y + img_y * scale)
+                    screen_x = int(offset_x + img_x * scale) + self.global_offset_x
+                    screen_y = int(offset_y + img_y * scale) + self.global_offset_y
 
                     if first_point:
-                        # 检查暂停状态 (移动到下一笔前)
-                        if not check_pause(screen_x, screen_y, False): break
+                        ok, d_x, d_y = check_pause(screen_x, screen_y, False)
+                        if not ok: break
+                        if d_x != 0 or d_y != 0:
+                            screen_x += d_x
+                            screen_y += d_y
 
                         pyautogui.mouseUp(button=mouse_btn)
                         pyautogui.moveTo(screen_x, screen_y)
@@ -281,6 +362,7 @@ class AutoSketchApp:
 
                         pyautogui.mouseDown(button=mouse_btn)
                         time.sleep(delay)
+                        
                         first_point = False
                         prev_x, prev_y = screen_x, screen_y
                     else:
@@ -293,12 +375,19 @@ class AutoSketchApp:
                             nx = prev_x + (screen_x - prev_x) * (i / steps)
                             ny = prev_y + (screen_y - prev_y) * (i / steps)
                             
-                            # 检查暂停状态 (拖拽中途)
-                            if not check_pause(int(nx), int(ny), True): break
+                            ok, d_x, d_y = check_pause(int(nx), int(ny), True)
+                            if not ok: break
+                            
+                            # 如果中途发生了纠偏增量，立刻接轨同步给当前计算坐标
+                            if d_x != 0 or d_y != 0:
+                                screen_x += d_x
+                                screen_y += d_y
+                                prev_x += d_x
+                                prev_y += d_y
+                                nx += d_x
+                                ny += d_y
 
                             pyautogui.moveTo(int(nx), int(ny))
-
-                            # 仅在需要时进行微小休眠，保证游戏引擎捕捉拖拽轨迹
                             if self.drag_step_var.get() < 20:
                                 time.sleep(0.001)
 
