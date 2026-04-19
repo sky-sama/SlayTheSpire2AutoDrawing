@@ -128,7 +128,7 @@ class AutoSketchApp:
         self.drag_step_var = tk.IntVar(value=5)  
         ttk.Spinbox(draw_frame, from_=1, to=50, textvariable=self.drag_step_var, width=8).grid(row=0, column=1)
 
-        ttk.Label(draw_frame, text="画笔速度(帧率)(步/秒):").grid(row=1, column=0, padx=10, pady=5, sticky="e")
+        ttk.Label(draw_frame, text="画笔速度 (帧率):").grid(row=1, column=0, padx=10, pady=5, sticky="e")
         self.delay_var = tk.DoubleVar(value=0.02)
         ttk.Spinbox(draw_frame, from_=0.00, to=0.2, increment=0.01, textvariable=self.delay_var, width=8).grid(row=1, column=1)
 
