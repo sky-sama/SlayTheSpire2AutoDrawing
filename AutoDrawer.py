@@ -124,11 +124,11 @@ class AutoSketchApp:
         draw_frame = ttk.LabelFrame(self.content_frame, text=" 绘制参数 & 模式 ")
         draw_frame.pack(fill="x", padx=15, pady=5)
 
-        ttk.Label(draw_frame, text="拖拽步长(像素):").grid(row=0, column=0, padx=10, pady=5, sticky="e")
+        ttk.Label(draw_frame, text="细节加速阈值 (像素):").grid(row=0, column=0, padx=10, pady=5, sticky="e")
         self.drag_step_var = tk.IntVar(value=5)  
         ttk.Spinbox(draw_frame, from_=1, to=50, textvariable=self.drag_step_var, width=8).grid(row=0, column=1)
 
-        ttk.Label(draw_frame, text="起落笔延迟 (秒):").grid(row=1, column=0, padx=10, pady=5, sticky="e")
+        ttk.Label(draw_frame, text="画笔速度(帧率)(步/秒):").grid(row=1, column=0, padx=10, pady=5, sticky="e")
         self.delay_var = tk.DoubleVar(value=0.02)
         ttk.Spinbox(draw_frame, from_=0.00, to=0.2, increment=0.01, textvariable=self.delay_var, width=8).grid(row=1, column=1)
 
@@ -401,8 +401,8 @@ top_margin = 9
 bottom_margin = 7
 
 [绘制参数]
-drag_step = 5
-delay = 0.02
+drag_step = 15
+delay = 30
 mouse_btn = right
 auto_align = True
 [快捷键]
@@ -883,7 +883,7 @@ mist_scroll = {self.mist_scroll_var.get()}"""
         offset_y = box_y + (box_h - draw_h) / 2
 
         step_px = max(1, self.drag_step_var.get())
-        delay = max(0.015, self.delay_var.get())
+        delay = 1 / self.delay_var.get()
         mouse_btn = self.btn_var.get()
 
         self.global_offset_x = 0
@@ -1021,19 +1021,17 @@ mist_scroll = {self.mist_scroll_var.get()}"""
                         time.sleep(delay) 
 
                         pyautogui.mouseDown(button=mouse_btn)
-                        time.sleep(delay) 
+                        #time.sleep(delay) 
                         
                         first_point = False
                         prev_x, prev_y = screen_x, screen_y
                     else:
                         dist = math.hypot(screen_x - prev_x, screen_y - prev_y)
-                        steps = int(dist / step_px)
-                        if steps < 1: steps = 1
 
-                        for i in range(1, steps + 1):
+                        for i in range(1, 2):
                             if self.stop_requested: break
-                            nx = prev_x + (screen_x - prev_x) * (i / steps)
-                            ny = prev_y + (screen_y - prev_y) * (i / steps)
+                            nx = prev_x + (screen_x - prev_x) * i
+                            ny = prev_y + (screen_y - prev_y) * i
                             
                             ok, d_x, d_y = check_pause(int(nx), int(ny), True)
                             if not ok: break
@@ -1047,13 +1045,13 @@ mist_scroll = {self.mist_scroll_var.get()}"""
                                 ny += d_y
 
                             pyautogui.moveTo(int(nx), int(ny))
+                            time.sleep(delay * min(1, dist / step_px))
                             if self.drag_step_var.get() < 20:
                                 time.sleep(0.001)
 
                         prev_x, prev_y = screen_x, screen_y
 
                 pyautogui.mouseUp(button=mouse_btn)
-                time.sleep(delay)
 
         finally:
             pyautogui.mouseUp(button=mouse_btn)
