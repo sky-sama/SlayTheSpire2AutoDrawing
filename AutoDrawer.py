@@ -391,8 +391,8 @@ class AutoSketchApp:
 # ==========================================
 
 [线条设置]
-threshold = 100
-min_len = 10
+threshold = 50
+min_len = 25
 
 [绘制区域]
 left_margin = 16
@@ -401,8 +401,8 @@ top_margin = 9
 bottom_margin = 7
 
 [绘制参数]
-drag_step = 15
-delay = 30
+drag_step = 50
+delay = 120
 mouse_btn = right
 auto_align = True
 [快捷键]
@@ -1006,8 +1006,11 @@ mist_scroll = {self.mist_scroll_var.get()}"""
                     img_x, img_y = point[0]
                     screen_x = int(offset_x + img_x * scale) + self.global_offset_x
                     screen_y = int(offset_y + img_y * scale) + self.global_offset_y
+                    
 
                     if first_point:
+                        time.sleep(delay)
+                        
                         ok, d_x, d_y = check_pause(screen_x, screen_y, False)
                         if not ok: break
                         if d_x != 0 or d_y != 0:
@@ -1015,43 +1018,34 @@ mist_scroll = {self.mist_scroll_var.get()}"""
                             screen_y += d_y
 
                         pyautogui.mouseUp(button=mouse_btn)
-                        time.sleep(delay) 
                         
                         pyautogui.moveTo(screen_x, screen_y, duration=0.01) 
-                        time.sleep(delay) 
+                        time.sleep(delay)
 
                         pyautogui.mouseDown(button=mouse_btn)
-                        #time.sleep(delay) 
+                        dist = step_px
                         
                         first_point = False
                         prev_x, prev_y = screen_x, screen_y
                     else:
+                        if self.stop_requested: break
+                        
+                        time.sleep(delay * 2 * min(1, max(dist / step_px, math.hypot(screen_x - prev_x, screen_y - prev_y) / step_px)))
+                        
                         dist = math.hypot(screen_x - prev_x, screen_y - prev_y)
+                        
+                        ok, d_x, d_y = check_pause(int(screen_x), int(screen_y), True)
+                        if not ok: break
+                        
+                        if d_x != 0 or d_y != 0:
+                            screen_x += d_x
+                            screen_y += d_y
+                            prev_x += d_x
+                            prev_y += d_y
 
-                        for i in range(1, 2):
-                            if self.stop_requested: break
-                            nx = prev_x + (screen_x - prev_x) * i
-                            ny = prev_y + (screen_y - prev_y) * i
-                            
-                            ok, d_x, d_y = check_pause(int(nx), int(ny), True)
-                            if not ok: break
-                            
-                            if d_x != 0 or d_y != 0:
-                                screen_x += d_x
-                                screen_y += d_y
-                                prev_x += d_x
-                                prev_y += d_y
-                                nx += d_x
-                                ny += d_y
-
-                            pyautogui.moveTo(int(nx), int(ny))
-                            time.sleep(delay * min(1, dist / step_px))
-                            if self.drag_step_var.get() < 20:
-                                time.sleep(0.001)
+                        pyautogui.moveTo(int(screen_x), int(screen_y))
 
                         prev_x, prev_y = screen_x, screen_y
-
-                pyautogui.mouseUp(button=mouse_btn)
 
         finally:
             pyautogui.mouseUp(button=mouse_btn)
